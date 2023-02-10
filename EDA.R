@@ -48,3 +48,49 @@ ggplot(combined, aes(x = n.x, y = n.y)) +
   labs(x = "Fourth Down Attempts",
        y = "Offensive TDs",
        title = "Fourth Down Go-For-It vs. TDs")
+
+#####Success Rates vs # of touchdowns#####
+library(readr)
+all_NFL_Success_Rates <- read_csv("C:/Users/bshos/OneDrive/Desktop/MSDS 456/Final Project/all_NFL_Success_Rates.csv") #will need to change this obviously
+success_rates <- all_NFL_Success_Rates %>%
+                    mutate(total_tds = tot_td$n)
+
+#Total Success Rate
+ggplot(success_rates, aes(x = total_tds, y = total_successrate_all)) + 
+  nflplotR::geom_mean_lines(aes(v_var = total_tds, h_var = total_successrate_all)) +
+  nflplotR::geom_nfl_logos(aes(team_abbr = posteam), width = 0.065, alpha = 0.7) +
+  labs(x = "Offensive TDs",
+       y = "Offensive Success Rate",
+       title = "Success Rate vs. TDs")
+
+#Run Success Rate
+ggplot(success_rates, aes(x = total_tds, y = run_successrate_all)) + 
+  nflplotR::geom_mean_lines(aes(v_var = total_tds, h_var = run_successrate_all)) +
+  nflplotR::geom_nfl_logos(aes(team_abbr = posteam), width = 0.065, alpha = 0.7) +
+  labs(x = "Offensive TDs",
+       y = "Run Success Rate",
+       title = "Run Success Rate vs. TDs")
+
+#Pass Success Rate
+ggplot(success_rates, aes(x = total_tds, y = pass_successrate_all)) + 
+  nflplotR::geom_mean_lines(aes(v_var = total_tds, h_var = pass_successrate_all)) +
+  nflplotR::geom_nfl_logos(aes(team_abbr = posteam), width = 0.065, alpha = 0.7) +
+  labs(x = "Offensive TDs",
+       y = "Pass Success Rate",
+       title = "Pass Success Rate vs. TDs")
+
+#1st Success Rate
+ggplot(success_rates, aes(x = total_tds, y = total_successrate_1st)) + 
+  nflplotR::geom_mean_lines(aes(v_var = total_tds, h_var = total_successrate_1st)) +
+  nflplotR::geom_nfl_logos(aes(team_abbr = posteam), width = 0.065, alpha = 0.7) +
+  labs(x = "Offensive TDs",
+       y = "First Down Success Rate",
+       title = "First Down Success Rate vs. TDs")
+
+#3rd Success Rate
+ggplot(success_rates, aes(x = total_tds, y = total_3rd)) + 
+  nflplotR::geom_mean_lines(aes(v_var = total_tds, h_var = total_3rd)) +
+  nflplotR::geom_nfl_logos(aes(team_abbr = posteam), width = 0.065, alpha = 0.7) +
+  labs(x = "Offensive TDs",
+       y = "Third Down Conversion Rate",
+       title = "Third Down Conversion Rate vs. TDs")
