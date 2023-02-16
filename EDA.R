@@ -38,23 +38,35 @@ tot_td <- count(off_td,posteam)
 tot_td
 
 ######fourth down stuff######
-go_for_it<- pbp %>% filter(fourth_down_converted==1 | fourth_down_failed==1) %>% select(posteam, fourth_down_converted)
-tot_fourth <- count(go_for_it,posteam)
-fourth_success <- go_for_it %>% filter(fourth_down_converted==1)
-tot_fourth['success'] <- count(fourth_success,posteam)[,2]
-tot_fourth['rate'] <- tot_fourth[,3]/tot_fourth[,2]
+fourth_downs <- pbp %>% filter(down == 4) %>% select(posteam, fourth_down_converted, fourth_down_failed)
+tot_fourth <- count(fourth_downs,posteam)
+go_for_it <- fourth_downs %>% filter(fourth_down_converted==1 | fourth_down_failed==1)
+tot_fourth['attempts'] <- count(go_for_it, posteam)$n
+tot_fourth['success'] <- count(go_for_it %>% filter(fourth_down_converted==1),posteam)$n
+tot_fourth['success_rate'] <- tot_fourth$success/tot_fourth$attempts
+tot_fourth['go_for_it_rate'] <- tot_fourth$attempts/tot_fourth$n
 tot_fourth
 
 combined <- tot_fourth %>% inner_join(tot_td, by="posteam")
 combined
 
-ggplot(combined, aes(x = n.x, y = n.y)) + 
+ggplot(combined, aes(x = go_for_it_rate, y = n.y)) + 
   nflplotR::geom_mean_lines(aes(v_var = n.x, h_var = n.y)) +
   nflplotR::geom_nfl_logos(aes(team_abbr = posteam), width = 0.065, alpha = 0.7) +
-  labs(x = "Fourth Down Attempts",
+  labs(x = "Go For It Rate",
        y = "Offensive TDs",
        title = "Fourth Down Go-For-It vs. TDs")
 
+##### explosive plays ######
+run_or_pass <- pbp %>% filter(play_type == 'run' | play_type == 'pass') %>% select(posteam, play_type, yards_gained)
+explosive_plays <- run_or_pass %>% filter((play_type == 'pass' & yards_gained >= 20) | (play_type == 'run' & yards_gained >= 10))
+explosive_plays_count <- count(explosive_plays, posteam)
+
+###### negative yard plays #####
+neg_yard_count <- count(pbp %>% filter(yards_gained < 0),posteam)
+
+##### turnovers #####
+turnovers_count <- count(pbp %>% filter(interception==1 | fumble_lost==1), posteam)
 
 #### linear regression ####
 relation <- lm(n.y ~ n.x + rate, combined)
