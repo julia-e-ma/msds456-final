@@ -68,6 +68,29 @@ neg_yard_count <- count(pbp %>% filter(yards_gained < 0),posteam)
 ##### turnovers #####
 turnovers_count <- count(pbp %>% filter(interception==1 | fumble_lost==1), posteam)
 
+######3rd down avoidance#####
+#number of conversions on 1st/2nd down
+conversions <- pbp %>% filter(first_down == 1) %>% select(posteam, down)
+tot_conv <- count(conversions,posteam)
+conv_1st_2nd <- conversions %>% filter(down == 1 | down == 2)
+tot_conv['conv_1st_2nd'] <- count(conv_1st_2nd, posteam)$n
+
+#number of down sequences - filtered for repeat 1st downs due to offensive penalties
+sequences <- pbp %>% filter(down == 1) %>% select(posteam, penalty_team, penalty_yards)
+seq_filtered <- sequences %>% filter(is.na(penalty_team) | posteam != penalty_team | penalty_yards != 0)
+down_sequences <- count(seq_filtered, posteam)
+
+#bring together
+combined_conv_sequences <- tot_conv %>% inner_join(down_sequences, by="posteam")
+combined_conv_sequences['avoidance_3rd'] <- combined_conv_sequences$conv_1st_2nd / combined_conv_sequences$n.y
+combined_conv_sequences <- combined_conv_sequences %>% inner_join(tot_td, by="posteam")
+combined_conv_sequences <- combined_conv_sequences %>% rename(
+  conversions = n.x,
+  sequences = n.y,
+  tot_td = n
+)
+
+
 #### linear regression ####
 relation <- lm(n.y ~ n.x + rate, combined)
 print(summary(relation))
