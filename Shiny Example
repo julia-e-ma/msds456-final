@@ -1,0 +1,190 @@
+
+# Load Packages -----------------------------------------------------------
+
+library(shiny)
+library(tidyverse)
+library(rgeos) # needed for deployment on shiny.io -- must be before maptools
+library(sp) # needed for deployment on shiny.io
+library(maptools) # needed for deployment on shiny.io
+library(scales)
+
+
+### read in and prep data
+source("data_prep.R")
+
+
+# Load and Store data -----------------------------------------------------
+
+
+
+
+# User interface ----
+ui <- fluidPage(
+  titlePanel("Opponent Third Down Threat"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      helpText("Choose Specifications of Data to Display"),
+      htmlOutput("opponent_selector"),
+      htmlOutput("opponent_opponents"),
+      htmlOutput("personnel_groups"),
+      
+      ### Check box to select what distance to look at
+      checkboxGroupInput("distance",
+                         label = "Select Distances",
+                         choices = c("1-2","3-5", "6-7", "8-13", "14+"),
+                         selected = c("1-2","3-5", "6-7", "8-13", "14+")),
+      
+      ## Check box to select field zones
+      checkboxGroupInput("field_zone",
+                         label = "Select Field Zones",
+                         choices = c("Backed Up", "Normal", "Red Zone", "Tite Zone", "Goal Line"),
+                         selected = c("Backed Up", "Normal", "Red Zone", "Tite Zone", "Goal Line"))
+    ),
+    
+    ## placing plots and tables in tabbed panels
+    mainPanel(
+      h1(textOutput("title"), align = "center"),
+      plotOutput("threat_vis"),
+      tableOutput("num_plays_table"),
+      tableOutput("player_target_table")
+      
+    )
+    
+    
+    
+  )
+  
+)
+
+
+# Server logic ----
+server <- function(input, output) {
+  
+  
+  
+  ### Radio Button Widget to select opponent 
+  output$opponent_selector <- renderUI({
+    radioButtons("NU_Opponent", 
+                 label = "Select an Opponent",
+                 choices = c("Nebraska" = "NEUN"),
+                 selected = "NEUN")
+  })
+  
+  
+  
+  ### Check Box Input to select their opponents
+  output$opponent_opponents <- renderUI({
+    
+    data_available <- full_dat %>%
+      filter(pff_OFFTEAM %in% input$NU_Opponent)
+    
+    opp_list <- data_available %>%
+      pull(pff_DEFTEAM)
+    
+    checkboxGroupInput("opps", 
+                       label = "Select Their Opponents",
+                       choices = unique(opp_list),
+                       selected = unique(opp_list))
+  })
+  
+  ## check box to select personnel groups 
+  output$personnel_groups <- renderUI({
+    
+    data_available <- full_dat %>% 
+      filter(pff_OFFTEAM %in% input$NU_Opponent) %>% 
+      filter(pff_DEFTEAM %in% input$opps)
+    
+    groups <- data_available %>% 
+      pull(pff_OFFPERSONNELBASIC)
+    
+    checkboxGroupInput("group",
+                       label = "Select Personnel Groups",
+                       choices = unique(groups),
+                       selected = unique(groups))
+    
+  })
+  
+  
+  
+  
+  output$threat_vis <- renderPlot({
+    
+    graph_dat <- full_dat %>% 
+      filter(pff_OFFTEAM %in% input$NU_Opponent) %>% 
+      filter(pff_DEFTEAM %in% input$opps) %>%
+      filter(pff_OFFPERSONNELBASIC %in% input$group) %>% 
+      filter(pff_DISTANCE %in% input$distance) %>% 
+      filter(field_zone %in% input$field_zone) %>% 
+      group_by(pff_PASSRECEIVERTARGET)
+    
+    
+    graph <- graph_dat %>% 
+      summarize(targets = n()) %>% 
+      mutate(target_pct = targets / sum(targets)) %>%
+      arrange(target_pct) %>% 
+      mutate(Receivers = factor(pff_PASSRECEIVERTARGET) %>% fct_inorder(ordered = TRUE)) %>% 
+      ggplot(aes(x = Receivers, y = target_pct)) +
+      geom_col() +
+      coord_flip() +
+      theme(axis.text = element_text(size = 14),
+            axis.title = element_text(size = 14)) +
+      scale_y_continuous(labels = percent_format(),
+                         name = "Target %")
+    
+    
+    if(nrow(graph_dat) == 0){
+      
+      graph <- ggplot(data = text) +
+        geom_text(aes(label = message), x = 0.5, y = 0.5,
+                  size = 8) +
+        theme_void()
+      
+      
+    }
+    
+    
+    graph      
+    
+  })
+  
+  
+  output$num_plays_table <- renderTable({
+    
+    full_dat %>% 
+      filter(pff_OFFTEAM %in% input$NU_Opponent) %>% 
+      filter(pff_DEFTEAM %in% input$opps) %>%
+      filter(pff_OFFPERSONNELBASIC %in% input$group) %>% 
+      filter(pff_DISTANCE %in% input$distance) %>% 
+      filter(field_zone %in% input$field_zone) %>% 
+      summarize("# of Plays" = n())
+    
+    
+  })
+  
+  output$player_target_table <- renderTable({
+    
+    full_dat %>% 
+      filter(pff_OFFTEAM %in% input$NU_Opponent) %>% 
+      filter(pff_DEFTEAM %in% input$opps) %>%
+      filter(pff_OFFPERSONNELBASIC %in% input$group) %>% 
+      filter(pff_DISTANCE %in% input$distance) %>% 
+      filter(field_zone %in% input$field_zone) %>% 
+      group_by(pff_PASSRECEIVERTARGET) %>% 
+      summarize(targets = n()) %>% 
+      mutate(target_pct = targets / sum(targets)) %>%
+      arrange(target_pct) %>% 
+      mutate(Receivers = factor(pff_PASSRECEIVERTARGET) %>% fct_inorder(ordered = TRUE)) %>% 
+      select(Receivers, targets) %>% 
+      arrange(desc(Receivers)) %>% 
+      rename("Targets" = targets)
+    
+    
+  })
+  
+  
+  
+}
+
+# Run app ----
+shinyApp(ui, server)
