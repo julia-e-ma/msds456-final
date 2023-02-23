@@ -22,6 +22,12 @@ library(randomForest)
 library(xgboost)
 library(neuralnet)
 
+
+# read in CSV data
+redZoneAll <- read.csv(file = 'redZone.csv')
+efficiencyAll <- read.csv('all_Success.csv')
+
+
 # get 2016-2021 data
 pbp <- load_pbp(2016:2021)
 pbp %>% head()
@@ -90,14 +96,36 @@ combined_conv_sequences <- combined_conv_sequences %>% rename(
   tot_td = n
 )
 
+##### offensive penalties #####
+penalty_plays <- pbp %>% filter(penalty==1 & penalty_team==posteam) %>% select(posteam, penalty, penalty_team)
+
+
+##### all features #####
+features <- combined_conv_sequences %>% select(posteam,avoidance_3rd)
+features <- features %>% inner_join(explosive_plays_count, by="posteam") %>% rename ("exp_plays" = "n")
+features['rushing'] <- count(pbp %>% filter(play_type == 'run'), posteam)$n
+features['passing'] <- count(pbp %>% filter(play_type == 'pass'), posteam)$n
+features['off_penalty'] <- count(penalty_plays, posteam)$n
+features['neg_yard_plays'] <- neg_yard_count$n
+features['turnovers'] <- turnovers_count$n
+features['go_for_it_rate'] <- tot_fourth$go_for_it_rate
+features['red_zone_td_rate'] <- redZoneAll$RZPct
+features['third_down_conv'] <- efficiencyAll$total_3rd
+features['first_down_success'] <- efficiencyAll$total_successrate_1st
+features['run_success'] <- efficiencyAll$run_successrate_all
+features['pass_success'] <- efficiencyAll$pass_successrate_all
+
+features_plusTD <- features %>% inner_join(tot_td, by="posteam")
 
 #### linear regression ####
-relation <- lm(n.y ~ n.x + rate, combined)
+relation <- lm(n ~ avoidance_3rd+exp_plays+rushing+passing+off_penalty+neg_yard_plays+
+                 turnovers+go_for_it_rate+red_zone_td_rate+third_down_conv+first_down_success+
+                 run_success+pass_success, features_plusTD)
 print(summary(relation))
 
 #### random forest ####
 set.seed(1234)
-rf.fit <- randomForest(n.y ~ ., data=combined, ntree=1000, importance=TRUE)
+rf.fit <- randomForest(n ~ ., data=features_plusTD, ntree=1000, importance=TRUE)
 rf.fit
 
 # Get variable importance from the model fit
@@ -117,12 +145,11 @@ ggplot(ImpData, aes(x=Var.Names, y=`%IncMSE`)) +
   )
 
 #### xgboost ####
-x = data.matrix(combined[,2:4])
-y = data.matrix(combined[,5])
+x = data.matrix(features[,2:14])
+y = data.matrix(tot_td$n)
 model_xgb <- xgboost(data = x, label = y, nrounds=10)
 imp <- xgb.importance(model = model_xgb)
 print(imp)
 xgb.plot.importance(importance_matrix = imp)
 
 #### neural network ####
-
