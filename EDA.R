@@ -24,8 +24,10 @@ library(neuralnet)
 
 
 # read in CSV data
-redZoneAll <- read.csv(file = 'redZone.csv')
-efficiencyAll <- read.csv('all_Success.csv')
+redZoneTrain <- read.csv(file = 'RedZoneTrain.csv')
+redZoneTest <- read.csv(file = 'RedZoneTest.csv')
+successTrain <- read.csv('Train_NFL_Success_Rates.csv')
+successTest <- read.csv('Train_NFL_Success_Rates.csv')
 
 
 # get 2016-2021 data
@@ -39,97 +41,133 @@ names(pbp)
 all_tds <- pbp %>% filter(touchdown==1) %>% select(posteam,season,td_team,touchdown)
 # filter out defensive TDs
 off_td <- all_tds %>% filter(td_team==posteam)
+td_train <- off_td %>% filter(season != 2021)
+td_test <- off_td %>% filter(season == 2021)
 # count by team
-tot_td <- count(off_td,posteam)
-tot_td
+train_y <- count(td_train,posteam)
+test_y <- count(td_test,posteam)
 
 ######fourth down stuff######
-fourth_downs <- pbp %>% filter(down == 4) %>% select(posteam, fourth_down_converted, fourth_down_failed)
-tot_fourth <- count(fourth_downs,posteam)
-go_for_it <- fourth_downs %>% filter(fourth_down_converted==1 | fourth_down_failed==1)
-tot_fourth['attempts'] <- count(go_for_it, posteam)$n
-tot_fourth['success'] <- count(go_for_it %>% filter(fourth_down_converted==1),posteam)$n
-tot_fourth['success_rate'] <- tot_fourth$success/tot_fourth$attempts
-tot_fourth['go_for_it_rate'] <- tot_fourth$attempts/tot_fourth$n
-tot_fourth
+fourth_downs <- pbp %>% filter(down == 4) %>% select(posteam, fourth_down_converted, fourth_down_failed, season)
 
-combined <- tot_fourth %>% inner_join(tot_td, by="posteam")
-combined
+fourth_train <- fourth_downs %>% filter(season != 2021)
+fourth_test <- fourth_downs %>% filter(season == 2021)
+tot_fourth_train <- count(fourth_train,posteam)
+tot_fourth_test <- count(fourth_test,posteam)
 
-ggplot(combined, aes(x = go_for_it_rate, y = n.y)) + 
-  nflplotR::geom_mean_lines(aes(v_var = n.x, h_var = n.y)) +
-  nflplotR::geom_nfl_logos(aes(team_abbr = posteam), width = 0.065, alpha = 0.7) +
-  labs(x = "Go For It Rate",
-       y = "Offensive TDs",
-       title = "Fourth Down Go-For-It vs. TDs")
+go_for_it_train <- fourth_train %>% filter(fourth_down_converted==1 | fourth_down_failed==1)
+go_for_it_test <- fourth_test %>% filter(fourth_down_converted==1 | fourth_down_failed==1)
+tot_fourth_train['attempts'] <- count(go_for_it_train, posteam)$n
+tot_fourth_test['attempts'] <- count(go_for_it_test, posteam)$n
+tot_fourth_train['success'] <- count(go_for_it_train %>% filter(fourth_down_converted==1),posteam)$n
+tot_fourth_test['success'] <- count(go_for_it_test %>% filter(fourth_down_converted==1),posteam)$n
+tot_fourth_train['success_rate'] <- tot_fourth_train$success/tot_fourth_train$attempts
+tot_fourth_test['success_rate'] <- tot_fourth_test$success/tot_fourth_test$attempts
+tot_fourth_train['go_for_it_rate'] <- tot_fourth_train$attempts/tot_fourth_train$n
+tot_fourth_test['go_for_it_rate'] <- tot_fourth_test$attempts/tot_fourth_test$n
+tot_fourth_train
+tot_fourth_test
 
 ##### explosive plays ######
-run_or_pass <- pbp %>% filter(play_type == 'run' | play_type == 'pass') %>% select(posteam, play_type, yards_gained)
+run_or_pass <- pbp %>% filter(play_type == 'run' | play_type == 'pass') %>% select(posteam, play_type, yards_gained, season)
 explosive_plays <- run_or_pass %>% filter((play_type == 'pass' & yards_gained >= 20) | (play_type == 'run' & yards_gained >= 10))
-explosive_plays_count <- count(explosive_plays, posteam)
+explosive_plays_train <- count(explosive_plays %>% filter(season != 2021), posteam)
+explosive_plays_test <- count(explosive_plays %>% filter(season == 2021), posteam)
 
 ###### negative yard plays #####
-neg_yard_count <- count(pbp %>% filter(yards_gained < 0),posteam)
+neg_yard_plays <- pbp %>% filter(yards_gained < 0)
+neg_yard_train <- count(neg_yard_plays %>% filter(season != 2021), posteam)
+neg_yard_test <- count(neg_yard_plays %>% filter(season == 2021), posteam)
 
 ##### turnovers #####
-turnovers_count <- count(pbp %>% filter(interception==1 | fumble_lost==1), posteam)
+turnovers_count <- pbp %>% filter(interception==1 | fumble_lost==1)
+turn_train <- count(turnovers_count %>% filter(season != 2021), posteam)
+turn_test <- count(turnovers_count %>% filter(season == 2021), posteam)
 
 ######3rd down avoidance#####
 #number of conversions on 1st/2nd down
-conversions <- pbp %>% filter(first_down == 1) %>% select(posteam, down)
-tot_conv <- count(conversions,posteam)
+conversions <- pbp %>% filter(first_down == 1) %>% select(posteam, down, season)
+conv_train <- count(conversions %>% filter(season != 2021),posteam)
+conv_test <- count(conversions %>% filter(season == 2021),posteam)
 conv_1st_2nd <- conversions %>% filter(down == 1 | down == 2)
-tot_conv['conv_1st_2nd'] <- count(conv_1st_2nd, posteam)$n
+conv_train['conv_1st_2nd'] <- count(conv_1st_2nd %>% filter(season != 2021), posteam)$n
+conv_test['conv_1st_2nd'] <- count(conv_1st_2nd %>% filter(season == 2021), posteam)$n
 
 #number of down sequences - filtered for repeat 1st downs due to offensive penalties
-sequences <- pbp %>% filter(down == 1) %>% select(posteam, penalty_team, penalty_yards)
+sequences <- pbp %>% filter(down == 1) %>% select(posteam, penalty_team, penalty_yards, season)
 seq_filtered <- sequences %>% filter(is.na(penalty_team) | posteam != penalty_team | penalty_yards != 0)
-down_sequences <- count(seq_filtered, posteam)
+down_sequences_train <- count(seq_filtered %>% filter(season != 2021), posteam)
+down_sequences_test <- count(seq_filtered %>% filter(season == 2021), posteam)
 
 #bring together
-combined_conv_sequences <- tot_conv %>% inner_join(down_sequences, by="posteam")
-combined_conv_sequences['avoidance_3rd'] <- combined_conv_sequences$conv_1st_2nd / combined_conv_sequences$n.y
-combined_conv_sequences <- combined_conv_sequences %>% inner_join(tot_td, by="posteam")
-combined_conv_sequences <- combined_conv_sequences %>% rename(
+combined_conv_sequences_train <- conv_train %>% inner_join(down_sequences_train, by="posteam")
+combined_conv_sequences_test <- conv_test %>% inner_join(down_sequences_test, by="posteam")
+combined_conv_sequences_train['avoidance_3rd'] <- combined_conv_sequences_train$conv_1st_2nd / combined_conv_sequences_train$n.y
+combined_conv_sequences_test['avoidance_3rd'] <- combined_conv_sequences_test$conv_1st_2nd / combined_conv_sequences_test$n.y
+combined_conv_sequences_train <- combined_conv_sequences_train %>% rename(
   conversions = n.x,
   sequences = n.y,
-  tot_td = n
+)
+combined_conv_sequences_test <- combined_conv_sequences_test %>% rename(
+  conversions = n.x,
+  sequences = n.y,
 )
 
 ##### offensive penalties #####
-penalty_plays <- pbp %>% filter(penalty==1 & penalty_team==posteam) %>% select(posteam, penalty, penalty_team)
+penalty_plays <- pbp %>% filter(penalty==1 & penalty_team==posteam) %>% select(posteam, penalty, penalty_team,season)
+penalty_train <- count(penalty_plays %>% filter(season != 2021), posteam)
+penalty_test <- count(penalty_plays %>% filter(season == 2021), posteam)
 
 
-##### all features #####
-features <- combined_conv_sequences %>% select(posteam,avoidance_3rd)
-features <- features %>% inner_join(explosive_plays_count, by="posteam") %>% rename ("exp_plays" = "n")
-features['rushing'] <- count(pbp %>% filter(play_type == 'run'), posteam)$n
-features['passing'] <- count(pbp %>% filter(play_type == 'pass'), posteam)$n
-features['off_penalty'] <- count(penalty_plays, posteam)$n
-features['neg_yard_plays'] <- neg_yard_count$n
-features['turnovers'] <- turnovers_count$n
-features['go_for_it_rate'] <- tot_fourth$go_for_it_rate
-features['red_zone_td_rate'] <- redZoneAll$RZPct
-features['third_down_conv'] <- efficiencyAll$total_3rd
-features['first_down_success'] <- efficiencyAll$total_successrate_1st
-features['run_success'] <- efficiencyAll$run_successrate_all
-features['pass_success'] <- efficiencyAll$pass_successrate_all
+##### train features #####
+train_x <- combined_conv_sequences_train %>% select(posteam,avoidance_3rd)
+train_x <- train_x %>% inner_join(explosive_plays_train, by="posteam") %>% rename ("exp_plays" = "n")
+train_x['rushing'] <- count(pbp %>% filter(play_type == 'run' & season != 2021), posteam)$n
+train_x['passing'] <- count(pbp %>% filter(play_type == 'pass' & season != 2021), posteam)$n
+train_x['off_penalty'] <- penalty_train$n
+train_x['neg_yard_plays'] <- neg_yard_train$n
+train_x['turnovers'] <- turn_train$n
+train_x['go_for_it_rate'] <- tot_fourth_train$go_for_it_rate
+train_x['red_zone_td_rate'] <- redZoneTrain$RZPct
+train_x['third_down_conv'] <- successTrain$total_3rd
+train_x['first_down_success'] <- successTrain$total_successrate_1st
+train_x['run_success'] <- successTrain$run_successrate_all
+train_x['pass_success'] <- successTrain$pass_successrate_all
 
-features_plusTD <- features %>% inner_join(tot_td, by="posteam")
+train_total <- train_x %>% inner_join(train_y, by="posteam")
+
+##### test features #####
+test_x <- combined_conv_sequences_test %>% select(posteam,avoidance_3rd)
+test_x <- test_x %>% inner_join(explosive_plays_test, by="posteam") %>% rename ("exp_plays" = "n")
+test_x['rushing'] <- count(pbp %>% filter(play_type == 'run' & season == 2021), posteam)$n
+test_x['passing'] <- count(pbp %>% filter(play_type == 'pass' & season == 2021), posteam)$n
+test_x['off_penalty'] <- penalty_test$n
+test_x['neg_yard_plays'] <- neg_yard_test$n
+test_x['turnovers'] <- turn_test$n
+test_x['go_for_it_rate'] <- tot_fourth_test$go_for_it_rate
+test_x['red_zone_td_rate'] <- redZoneTest$RZPct
+test_x['third_down_conv'] <- successTest$total_3rd
+test_x['first_down_success'] <- successTest$total_successrate_1st
+test_x['run_success'] <- successTest$run_successrate_all
+test_x['pass_success'] <- successTest$pass_successrate_all
+
+test_total <- test_x %>% inner_join(test_y, by="posteam")
 
 #### linear regression ####
 relation <- lm(n ~ avoidance_3rd+exp_plays+rushing+passing+off_penalty+neg_yard_plays+
                  turnovers+go_for_it_rate+red_zone_td_rate+third_down_conv+first_down_success+
-                 run_success+pass_success, features_plusTD)
+                 run_success+pass_success, train_total)
 print(summary(relation))
+
+lin_prediction <- data.frame(n = predict(relation, newdata = test_x))
+lr_err <- sqrt(mean((test_y$n - lin_prediction$n)^2))
 
 #### random forest ####
 set.seed(1234)
-rf.fit <- randomForest(n ~ ., data=features_plusTD, ntree=1000, importance=TRUE)
-rf.fit
+rf_model <- randomForest(n ~ ., data=train_total, ntree=1000, importance=TRUE)
 
 # Get variable importance from the model fit
-ImpData <- as.data.frame(importance(rf.fit))
+ImpData <- as.data.frame(importance(rf_model))
 ImpData$Var.Names <- row.names(ImpData)
 
 ggplot(ImpData, aes(x=Var.Names, y=`%IncMSE`)) +
@@ -144,12 +182,18 @@ ggplot(ImpData, aes(x=Var.Names, y=`%IncMSE`)) +
     axis.ticks.y = element_blank()
   )
 
+rf_prediction <- data.frame(n = predict(rf_model, newdata = test_x))
+rf_err <- sqrt(mean((test_y$n - rf_prediction$n)^2))
+
 #### xgboost ####
-x = data.matrix(features[,2:14])
-y = data.matrix(tot_td$n)
-model_xgb <- xgboost(data = x, label = y, nrounds=10)
-imp <- xgb.importance(model = model_xgb)
+x = data.matrix(train_x[,2:14])
+y = data.matrix(train_y$n)
+xgb_model <- xgboost(data = x, label = y, nrounds=10)
+imp <- xgb.importance(model = xgb_model)
 print(imp)
 xgb.plot.importance(importance_matrix = imp)
+
+xgb_prediction <- data.frame(n= predict(xgb_model, data.matrix(test_x[,-1])))
+xgb_err <- sqrt(mean((test_y$n - xgb_prediction$n)^2))
 
 #### neural network ####
