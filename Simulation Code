@@ -1,20 +1,21 @@
 ## filtering for only pass data and creating necessary columns
 pass_dat <- all_dat %>% 
   filter(run_pass == "P") %>% 
-  filter(dropback_type != "SR") %>% 
-  filter(dropback_type != "SL") %>% 
-  filter(dropback_type != "TR") %>% 
-  filter(dropback_type != "TL") 
+  filter(pff_DROPBACKTYPE != "SR") %>% 
+  filter(pff_DROPBACKTYPE != "SL") %>% 
+  filter(pff_DROPBACKTYPE != "TR") %>% 
+  filter(pff_DROPBACKTYPE != "TL") 
 
 pass_dat <- pass_dat %>% 
-  select(play_id, game_id, offense, run_pass_option, screen, play_action, dropback_type, quick, expected_points_added, team_color) %>% 
-  mutate(pass_concept = case_when(run_pass_option == 1 ~ "rpo",
+  select(play_id, game_id, offense, pff_RUNPASSOPTION, screen, pff_PLAYACTION, pff_DROPBACKTYPE, quick, expected_points_added, team_color) %>% 
+  mutate(pass_concept = case_when(pff_RUNPASSOPTION == 1 ~ "rpo",
                                   screen == 1 ~ "screen",
-                                  play_action == 1 & (dropback_type == "RR" | dropback_type == "RL" | dropback_type == "RSR" | dropback_type == "RSL") ~ "naked_boot",
-                                  play_action == 0 & dropback_type == "SD" & quick == 1 & run_pass_option == 0 ~ "quick",
-                                  play_action == 0 & dropback_type == "SD" & quick == 0 & run_pass_option == 0 ~ "dropback",
-                                  play_action == 1 & dropback_type == "SD" ~ "play action",
-                                  play_action == 0 & (dropback_type == "RR" | dropback_type == "RL" | dropback_type == "RSR" | dropback_type == "RSL") ~ "sprint"),
+                                  pff_PLAYACTION == 1 & (pff_DROPBACKTYPE == "RR" | pff_DROPBACKTYPE == "RL" | pff_DROPBACKTYPE == "RSR" | pff_DROPBACKTYPE == "RSL" | 
+                                                         pff_DROPBACKTYPE == "RLR" | pff_DROPBACKTYPE == "RRL") ~ "naked_boot",
+                                  pff_PLAYACTION == 0 & pff_DROPBACKTYPE == "SD" & quick == 1 & pff_RUNPASSOPTION == 0 ~ "quick",
+                                  pff_PLAYACTION == 0 & pff_DROPBACKTYPE == "SD" & quick == 0 & pff_RUNPASSOPTION ~ "dropback",
+                                  pff_PLAYACTION == 1 & pff_DROPBACKTYPE == "SD" ~ "play action",
+                                  pff_PLAYACTION == 0 & (pff_DROPBACKTYPE == "RR" | pff_DROPBACKTYPE == "RL" | pff_DROPBACKTYPE == "RSR" | pff_DROPBACKTYPE == "RSL") ~ "sprint"),
          y_axis = 0)
          
          
@@ -24,14 +25,17 @@ run_dat <- all_dat %>%
   filter(run_pass == "R")
 
 run_dat <- run_dat %>% 
-  select(play_id, game_id, offense, primary_run_concept, expected_points_added, team_color) %>% 
-  mutate(run_concept = case_when(primary_run_concept == "INSIDE ZONE" ~ "inside zone",
-                                 primary_run_concept == "OUTSIDE ZONE" ~ "outside zone",
-                                 primary_run_concept == "COUNTER" ~ "counter",
-                                 primary_run_concept == "DRAW" ~ "draw",
-                                 primary_run_concept == "MAN" ~ "man",
-                                 primary_run_concept == "POWER" ~ "power",
-                                 primary_run_concept == "PULL LEAD" ~ "pull lead",
-                                 primary_run_concept == "SNEAK" ~ "sneak",
-                                 primary_run_concept == "TRICK" ~ "trick"),
+  select(play_id, game_id, offense, pff_RUNCONCEPTPRIMARY, expected_points_added, team_color) %>% 
+  mutate(run_concept = case_when(pff_RUNCONCEPTPRIMARY == "INSIDE ZONE" ~ "inside zone",
+                                 pff_RUNCONCEPTPRIMARY == "OUTSIDE ZONE" ~ "outside zone",
+                                 pff_RUNCONCEPTPRIMARY == "COUNTER" ~ "counter",
+                                 pff_RUNCONCEPTPRIMARY == "DRAW" ~ "draw",
+                                 pff_RUNCONCEPTPRIMARY == "MAN" ~ "man",
+                                 pff_RUNCONCEPTPRIMARY == "POWER" ~ "power",
+                                 pff_RUNCONCEPTPRIMARY == "PULL LEAD" ~ "pull lead",
+                                 pff_RUNCONCEPTPRIMARY == "SNEAK" ~ "sneak",
+                                 pff_RUNCONCEPTPRIMARY == "TRICK" ~ "trick",
+                                 pff_RUNCONCEPTPRIMARY == "FB RUN" ~ "fullback",
+                                 pff_RUNCONCEPTPRIMARY == "TRAP" ~ "trap",
+                                 pff_RUNCONCEPTPRIMARY == "UNDEFINED" ~ "random"),
          y_axis = 0)
