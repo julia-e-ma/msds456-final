@@ -39,3 +39,14 @@ run_dat <- run_dat %>%
                                  pff_RUNCONCEPTPRIMARY == "TRAP" ~ "trap",
                                  pff_RUNCONCEPTPRIMARY == "UNDEFINED" ~ "random"),
          y_axis = 0)
+         
+     
+     
+##game states
+data <- data %>%
+ mutate(data = case_when((DN == 1 | DN == 2) & ydl_100 > 20 ~ "open field",
+                                 DN == 3 & ydl_100 > 20 ~ "3rd down",
+                                 DN == 4 & ydl_100 > 20 ~ "4th down"
+                                 ydl_100 <= 20 ~ "red zone"),
+         y_axis = 0)
+
