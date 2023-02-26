@@ -7,16 +7,15 @@ pass_dat <- all_dat %>%
   filter(pff_DROPBACKTYPE != "TL") 
 
 pass_dat <- pass_dat %>% 
-  select(play_id, game_id, offense, pff_RUNPASSOPTION, screen, pff_PLAYACTION, pff_DROPBACKTYPE, quick, expected_points_added, team_color) %>% 
+  select(play_id, game_id, offense, pff_RUNPASSOPTION, pff_SCREEN, pff_PLAYACTION, pff_DROPBACKTYPE, pff_QUICKGAME) %>% 
   mutate(pass_concept = case_when(pff_RUNPASSOPTION == 1 ~ "rpo",
-                                  screen == 1 ~ "screen",
+                                  pff_SCREEN == 1 ~ "screen",
                                   pff_PLAYACTION == 1 & (pff_DROPBACKTYPE == "RR" | pff_DROPBACKTYPE == "RL" | pff_DROPBACKTYPE == "RSR" | pff_DROPBACKTYPE == "RSL" | 
                                                          pff_DROPBACKTYPE == "RLR" | pff_DROPBACKTYPE == "RRL") ~ "naked_boot",
-                                  pff_PLAYACTION == 0 & pff_DROPBACKTYPE == "SD" & quick == 1 & pff_RUNPASSOPTION == 0 ~ "quick",
-                                  pff_PLAYACTION == 0 & pff_DROPBACKTYPE == "SD" & quick == 0 & pff_RUNPASSOPTION ~ "dropback",
+                                  pff_PLAYACTION == 0 & pff_DROPBACKTYPE == "SD" & pff_QUICKGAME == 1 & pff_RUNPASSOPTION == 0 ~ "quick",
+                                  pff_PLAYACTION == 0 & pff_DROPBACKTYPE == "SD" & pff_QUICKGAME == 0 & pff_RUNPASSOPTION ~ "dropback",
                                   pff_PLAYACTION == 1 & pff_DROPBACKTYPE == "SD" ~ "play action",
-                                  pff_PLAYACTION == 0 & (pff_DROPBACKTYPE == "RR" | pff_DROPBACKTYPE == "RL" | pff_DROPBACKTYPE == "RSR" | pff_DROPBACKTYPE == "RSL") ~ "sprint"),
-         y_axis = 0)
+                                  pff_PLAYACTION == 0 & (pff_DROPBACKTYPE == "RR" | pff_DROPBACKTYPE == "RL" | pff_DROPBACKTYPE == "RSR" | pff_DROPBACKTYPE == "RSL") ~ "sprint"))
          
          
        
@@ -45,8 +44,7 @@ run_dat <- run_dat %>%
 ##game states
 data <- data %>%
  mutate(data = case_when((DN == 1 | DN == 2) & ydl_100 > 20 ~ "open field",
-                          DN == 3 & ydl_100 > 20 ~ "3rd down",
-                          DN == 4 & ydl_100 > 20 ~ "4th down"
+                          (DN == 3 | DN == 4) & ydl_100 > 20 ~ "3rd/4th down",
                           ydl_100 <= 20 ~ "red zone"),
          y_axis = 0)
 
