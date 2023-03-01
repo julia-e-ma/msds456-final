@@ -93,17 +93,17 @@ get_result <- function(current_down, current_dst, current_ydl, play){
   
   new_ydl <- current_ydl + result_yds # find new spot for ball
   tds <- 0
-  if (new_ydl >= 100) { # if you score TD, reset and add 1 TD
+  if (new_ydl >= 100) { # if you score TD, reset and add 1 TD ### TODO; add multiple TD tracking and ydl_100 logic
     new_down <- 1
     new_dst <- 10
     new_ydl <- 25
     tds <- 1
   }
-  if (result_yds >= current_dst){  # 
+  if (result_yds >= current_dst){  # if you surpass the down, reset downs and distance # TODO: add goal line exception
     new_down <- 1
     new_dst <- 10
   }
-  else {
+  else { # otherwise, increment downs by 1 and subtract  to find yds to go
     new_down = current_down + 1
     new_dst <- current_dst - result_yds
   }
@@ -112,27 +112,24 @@ get_result <- function(current_down, current_dst, current_ydl, play){
     new_dst <- 10
     new_ydl <- 25
   }
-  print(new_down)
-  return (c(new_down, new_dst, new_ydl, tds))
+  return (c(new_down, new_dst, new_ydl, result_yds, tds))
 }
 
-getState <- function(action, data) {
-  if (action == "save"){
-    if (exists("play_history")) {
-      play_history <<- rbind(play_history, data)
-    }
-    else {
-      play_history <<- data
-    }
+saveState <- function(data) {
+  if (exists("play_history")) {
+    play_history <<- rbind(play_history, data)
   }
-  if (action == "get"){
-    if (exists("play_history")) {
-      return (tail(play_history,1))
-    }
-    else {
-      print("NEW HISTORY BEGINS")
-      return (data.frame(Down = c(1), Distance = c(10), Yardline = c(25)))
-    }
+  else {
+    play_history <<- data
+  }
+}
+
+getState <- function() {
+  if (exists("play_history")) {
+    return (tail(play_history, 1))
+  }
+  else {
+    return (data.frame(Down = c(1), Distance = c(10), Yardline = c(25)))
   }
 }
 
@@ -140,18 +137,16 @@ getState <- function(action, data) {
 
 server <- function(input, output, session) {
   output$down <- renderText({
-    now <- getState("get", c())
-    print(now)
-    if (input$playcall == ""){
-      getState("save",data.frame(Down = c(1), Distance = c(10), Yardline = c(25)))
+    now <- getState()
+    if (input$playcall == ""){ # beginning state
+      saveState(data.frame(Down = c(1), Distance = c(10), Yardline = c(25)))
       sprintf("Down: %s, Yards to Go: %s, Yardline: %s", 
               1, 10, 25)
     }
-    else{
+    else{ # after user has selected 1st play
       new <- get_result(now$Down, now$Distance, now$Yardline, input$playcall)
-      getState("save",data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3])))
-      sprintf("Down: %s, Yards to Go: %s, Yardline: %s", 
-              new[1], new[2], new[3])
+      saveState(data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3])))
+      sprintf("Previous play resulted in %s gain.    \n Down: %s, Yards to Go: %s, Yardline: %s", new[4], new[1], new[2], new[3])
     }})
   }
 
