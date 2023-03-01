@@ -35,19 +35,19 @@ nyg_2022['play_name'] = case_when(nyg_2022$pff_RUNCONCEPTPRIMARY == "INSIDE ZONE
                                 nyg_2022$pff_RUNCONCEPTPRIMARY == "TRAP" ~ "trap",
                                 nyg_2022$pff_RUNCONCEPTPRIMARY == "UNDEFINED" ~ "random")
 
-
 DN <- 1
 DST <- 10
 ydl_100 <- 25
+TDS <- 0
 
-STATE = case_when((DN == 1 | DN == 2) & ydl_100 > 20 ~ "open field",
+STATE <- case_when((DN == 1 | DN == 2) & ydl_100 > 20 ~ "open field",
                               (DN == 3 | DN == 4) & ydl_100 > 20 & DST >= 8 ~ "3rd_4th long",
                               (DN == 3 | DN == 4) & ydl_100 > 20 & DST >= 3 & DST < 8 ~ "3rd_4th med",
                               (DN == 3 | DN == 4) & ydl_100 > 20 & DST < 2 ~ "short yardage",
                               ydl_100 <= 20 ~ "red zone")
-df = nyg_2022 %>% filter(state == STATE)
+df <- nyg_2022 %>% filter(state == STATE)
 play_options <- unique(df$play_name)
-play_options<- play_options[!is.na(play_options)]
+play_options<- c("",play_options[!is.na(play_options)])
 
 
 # Define UI --------------------------------------------------------------------
@@ -66,7 +66,7 @@ ui <- fluidPage(
         inputId = "playcall",
         label = "Play Call:",
         choices = play_options,
-        selected = "man"
+        selected = NULL
       ),
     ),
     
@@ -75,24 +75,91 @@ ui <- fluidPage(
       h1("You're the offensive coordinator for the New York Giants! Choose the type of play to call and see what happens."),
       br(),
       textOutput("down"),
-      h3("Yds to Go: "),h3("10"), br(),
-      h3("Yard Line: "),h3("25")
     )
   )
 )
 
+get_result <- function(current_down, current_dst, current_ydl, play){
+  STATE <- case_when((current_down == 1 | current_down == 2) & current_ydl > 20 ~ "open field",
+                     (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst >= 8 ~ "3rd_4th long",
+                     (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst >= 3 & current_dst < 8 ~ "3rd_4th med",
+                     (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst < 2 ~ "short yardage",
+                     current_ydl <= 20 ~ "red zone")
+  print("____________")
+  print(STATE)
+  df <- nyg_2022 %>% filter(state == STATE & play_name == play)
+  result_yds <- df[sample(nrow(df), 1), ]$pff_GAINLOSSNET
+  print(paste("Gain:" ,result_yds))
+  
+  new_ydl <- current_ydl + result_yds # find new spot for ball
+  tds <- 0
+  if (new_ydl >= 100) { # if you score TD, reset and add 1 TD
+    new_down <- 1
+    new_dst <- 10
+    new_ydl <- 25
+    tds <- 1
+  }
+  if (result_yds >= current_dst){  # 
+    new_down <- 1
+    new_dst <- 10
+  }
+  else {
+    new_down = current_down + 1
+    new_dst <- current_dst - result_yds
+  }
+  if (new_down > 4){ # if you fail to convert on 4th down, reset
+    new_down <- 1
+    new_dst <- 10
+    new_ydl <- 25
+  }
+  print(new_down)
+  return (c(new_down, new_dst, new_ydl, tds))
+}
+
+getState <- function(action, data) {
+  if (action == "save"){
+    if (exists("play_history")) {
+      play_history <<- rbind(play_history, data)
+    }
+    else {
+      play_history <<- data
+    }
+  }
+  if (action == "get"){
+    if (exists("play_history")) {
+      return (tail(play_history,1))
+    }
+    else {
+      print("NEW HISTORY BEGINS")
+      return (data.frame(Down = c(1), Distance = c(10), Yardline = c(25)))
+    }
+  }
+}
+
 # Define server ----------------------------------------------------------------
 
 server <- function(input, output, session) {
-  output$down <- renderText({paste("Down", input$x)})
-  output$ytg <- renderText({"10"})
-  output$ydline <- renderText({"25"})
-  tds <- renderText({"0"})
-  # filter plays by game state
-  df = nyg_2022 %>% filter(state == STATE)
-  play_options <- unique(df$play_name)
-}
+  output$down <- renderText({
+    now <- getState("get", c())
+    print(now)
+    if (input$playcall == ""){
+      getState("save",data.frame(Down = c(1), Distance = c(10), Yardline = c(25)))
+      sprintf("Down: %s, Yards to Go: %s, Yardline: %s", 
+              1, 10, 25)
+    }
+    else{
+      new <- get_result(now$Down, now$Distance, now$Yardline, input$playcall)
+      getState("save",data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3])))
+      sprintf("Down: %s, Yards to Go: %s, Yardline: %s", 
+              new[1], new[2], new[3])
+    }})
+  }
 
 # Create a Shiny app object ----------------------------------------------------
 
-shinyApp(ui = ui, server = server)
+shinyApp(ui = ui, server = server, onStart = function() {
+  onStop(function() {
+    if (exists("play_history")) {
+      rm(list = c("play_history"), envir = .GlobalEnv)
+    }})
+})
