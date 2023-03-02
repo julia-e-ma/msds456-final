@@ -13,31 +13,43 @@ nyg_2022['state'] <- case_when((nyg_2022$DN == 1 | nyg_2022$DN == 2) & nyg_2022$
                                (nyg_2022$DN == 3 | nyg_2022$DN == 4) & nyg_2022$ydl_100 > 20 & nyg_2022$DST < 2 ~ "short yardage",
                                nyg_2022$ydl_100 <= 20 ~ "red zone")
 
-nyg_2022['play_name'] = case_when(nyg_2022$pff_RUNPASSOPTION == 1 ~ "rpo",
-                                  nyg_2022$pff_SCREEN == 1 ~ "screen",
-                                  nyg_2022$pff_PLAYACTION == 1 & (nyg_2022$pff_DROPBACKTYPE == "RR" | nyg_2022$pff_DROPBACKTYPE == "RL" | nyg_2022$pff_DROPBACKTYPE == "RSR" | nyg_2022$pff_DROPBACKTYPE == "RSL" | 
-                                  nyg_2022$pff_DROPBACKTYPE == "RLR" | nyg_2022$pff_DROPBACKTYPE == "RRL") ~ "naked_boot",
-                                  nyg_2022$pff_PLAYACTION == 0 & nyg_2022$pff_DROPBACKTYPE == "SD" & nyg_2022$pff_QUICKGAME == 1 & nyg_2022$pff_RUNPASSOPTION == 0 ~ "quick",
-                                  nyg_2022$pff_PLAYACTION == 0 & nyg_2022$pff_DROPBACKTYPE == "SD" & nyg_2022$pff_QUICKGAME == 0 & nyg_2022$pff_RUNPASSOPTION == 0 ~ "dropback",
-                                  nyg_2022$pff_PLAYACTION == 1 & nyg_2022$pff_DROPBACKTYPE == "SD" ~ "play action",
-                                  nyg_2022$pff_PLAYACTION == 0 & (nyg_2022$pff_DROPBACKTYPE == "RR" | nyg_2022$pff_DROPBACKTYPE == "RL" | nyg_2022$pff_DROPBACKTYPE == "RSR" | nyg_2022$pff_DROPBACKTYPE == "RSL") ~ "sprint")
+pass_dat <- nyg_2022 %>% 
+  filter(run_pass == "P") %>% 
+  filter(pff_DROPBACKTYPE != "SR") %>% 
+  filter(pff_DROPBACKTYPE != "SL") %>% 
+  filter(pff_DROPBACKTYPE != "TR") %>% 
+  filter(pff_DROPBACKTYPE != "TL") 
 
-nyg_2022['play_name'] = case_when(nyg_2022$pff_RUNCONCEPTPRIMARY == "INSIDE ZONE" ~ "inside zone",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "OUTSIDE ZONE" ~ "outside zone",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "COUNTER" ~ "counter",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "DRAW" ~ "draw",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "MAN" ~ "man",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "POWER" ~ "power",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "PULL LEAD" ~ "pull lead",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "SNEAK" ~ "sneak",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "TRICK" ~ "trick",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "FB RUN" ~ "fullback",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "TRAP" ~ "trap",
-                                nyg_2022$pff_RUNCONCEPTPRIMARY == "UNDEFINED" ~ "random")
+pass_dat['play_name'] = case_when(pass_dat$pff_RUNPASSOPTION == 1 ~ "rpo",
+                                  pass_dat$pff_SCREEN == 1 ~ "screen",
+                                  pass_dat$pff_PLAYACTION == 1 & (pass_dat$pff_DROPBACKTYPE == "RR" | pass_dat$pff_DROPBACKTYPE == "RL" | pass_dat$pff_DROPBACKTYPE == "RSR" | pass_dat$pff_DROPBACKTYPE == "RSL" | 
+                                  pass_dat$pff_DROPBACKTYPE == "RLR" | pass_dat$pff_DROPBACKTYPE == "RRL") ~ "naked_boot",
+                                  pass_dat$pff_PLAYACTION == 0 & pass_dat$pff_DROPBACKTYPE == "SD" & pass_dat$pff_QUICKGAME == 1 & pass_dat$pff_RUNPASSOPTION == 0 ~ "quick",
+                                  pass_dat$pff_PLAYACTION == 0 & pass_dat$pff_DROPBACKTYPE == "SD" & pass_dat$pff_QUICKGAME == 0 & pass_dat$pff_RUNPASSOPTION == 0 ~ "dropback",
+                                  pass_dat$pff_PLAYACTION == 1 & pass_dat$pff_DROPBACKTYPE == "SD" ~ "play action",
+                                  pass_dat$pff_PLAYACTION == 0 & (pass_dat$pff_DROPBACKTYPE == "RR" | pass_dat$pff_DROPBACKTYPE == "RL" | pass_dat$pff_DROPBACKTYPE == "RSR" | pass_dat$pff_DROPBACKTYPE == "RSL") ~ "sprint")
+
+run_dat <- nyg_2022 %>% 
+  filter(run_pass == "R")
+
+run_dat['play_name'] = case_when(run_dat$pff_RUNCONCEPTPRIMARY == "INSIDE ZONE" ~ "inside zone",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "OUTSIDE ZONE" ~ "outside zone",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "COUNTER" ~ "counter",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "DRAW" ~ "draw",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "MAN" ~ "man",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "POWER" ~ "power",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "PULL LEAD" ~ "pull lead",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "SNEAK" ~ "sneak",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "TRICK" ~ "trick",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "FB RUN" ~ "fullback",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "TRAP" ~ "trap",
+                                  run_dat$pff_RUNCONCEPTPRIMARY == "UNDEFINED" ~ "random")
+
+nyg_2022 <- rbind(pass_dat, run_dat)
 
 DN <- 1
 DST <- 10
-ydl_100 <- 25
+ydl_100 <- 75
 TDS <- 0
 
 STATE <- case_when((DN == 1 | DN == 2) & ydl_100 > 20 ~ "open field",
@@ -61,13 +73,7 @@ ui <- fluidPage(
     # Inputs: Select variables to plot
     sidebarPanel(
       
-      # Select play call
-      selectInput(
-        inputId = "playcall",
-        label = "Play Call:",
-        choices = play_options,
-        selected = NULL
-      ),
+      uiOutput("play_options")
     ),
     
     # Output: Show play result
@@ -89,14 +95,15 @@ get_result <- function(current_down, current_dst, current_ydl, play){
   print(STATE)
   df <- nyg_2022 %>% filter(state == STATE & play_name == play)
   result_yds <- df[sample(nrow(df), 1), ]$pff_GAINLOSSNET
-  print(paste("Gain:" ,result_yds))
+  print(result_yds)
+  print(current_ydl)
   
-  new_ydl <- current_ydl + result_yds # find new spot for ball
+  new_ydl <- current_ydl - result_yds # find new spot for ball
   tds <- 0
-  if (new_ydl >= 100) { # if you score TD, reset and add 1 TD ### TODO; add multiple TD tracking and ydl_100 logic
+  if (new_ydl <= 0) { # if you score TD, reset and add 1 TD ### TODO; add multiple TD tracking
     new_down <- 1
     new_dst <- 10
-    new_ydl <- 25
+    new_ydl <- 75
     tds <- 1
   }
   if (result_yds >= current_dst){  # if you surpass the down, reset downs and distance # TODO: add goal line exception
@@ -110,9 +117,9 @@ get_result <- function(current_down, current_dst, current_ydl, play){
   if (new_down > 4){ # if you fail to convert on 4th down, reset
     new_down <- 1
     new_dst <- 10
-    new_ydl <- 25
+    new_ydl <- 75
   }
-  return (c(new_down, new_dst, new_ydl, result_yds, tds))
+  return (c(new_down, new_dst, new_ydl, result_yds, tds, STATE))
 }
 
 saveState <- function(data) {
@@ -129,23 +136,33 @@ getState <- function() {
     return (tail(play_history, 1))
   }
   else {
-    return (data.frame(Down = c(1), Distance = c(10), Yardline = c(25)))
+    return (data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field")))
   }
 }
 
 # Define server ----------------------------------------------------------------
 
 server <- function(input, output, session) {
+  output$play_options <- renderUI({
+    now <- getState()
+    df <- nyg_2022 %>% filter(state == now$State)
+    play_options <- c("",unique(df$play_name))
+    selectInput(
+      inputId = "playcall",
+      label = "Play Call:",
+      choices = play_options,
+      selected = NULL)
+  })
   output$down <- renderText({
     now <- getState()
     if (input$playcall == ""){ # beginning state
-      saveState(data.frame(Down = c(1), Distance = c(10), Yardline = c(25)))
+      saveState(data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field")))
       sprintf("Down: %s, Yards to Go: %s, Yardline: %s", 
-              1, 10, 25)
+              1, 10, 75)
     }
     else{ # after user has selected 1st play
-      new <- get_result(now$Down, now$Distance, now$Yardline, input$playcall)
-      saveState(data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3])))
+      new <- get_result(as.numeric(now$Down), as.numeric(now$Distance), as.numeric(now$Yardline), input$playcall)
+      saveState(data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3]), State = c(new[6])))
       sprintf("Previous play resulted in %s gain.    \n Down: %s, Yards to Go: %s, Yardline: %s", new[4], new[1], new[2], new[3])
     }})
   }
