@@ -23,7 +23,7 @@ pass_dat <- nyg_2022 %>%
 pass_dat['play_name'] = case_when(pass_dat$pff_RUNPASSOPTION == 1 ~ "rpo",
                                   pass_dat$pff_SCREEN == 1 ~ "screen",
                                   pass_dat$pff_PLAYACTION == 1 & (pass_dat$pff_DROPBACKTYPE == "RR" | pass_dat$pff_DROPBACKTYPE == "RL" | pass_dat$pff_DROPBACKTYPE == "RSR" | pass_dat$pff_DROPBACKTYPE == "RSL" | 
-                                  pass_dat$pff_DROPBACKTYPE == "RLR" | pass_dat$pff_DROPBACKTYPE == "RRL") ~ "naked_boot",
+                                                                    pass_dat$pff_DROPBACKTYPE == "RLR" | pass_dat$pff_DROPBACKTYPE == "RRL") ~ "naked_boot",
                                   pass_dat$pff_PLAYACTION == 0 & pass_dat$pff_DROPBACKTYPE == "SD" & pass_dat$pff_QUICKGAME == 1 & pass_dat$pff_RUNPASSOPTION == 0 ~ "quick",
                                   pass_dat$pff_PLAYACTION == 0 & pass_dat$pff_DROPBACKTYPE == "SD" & pass_dat$pff_QUICKGAME == 0 & pass_dat$pff_RUNPASSOPTION == 0 ~ "dropback",
                                   pass_dat$pff_PLAYACTION == 1 & pass_dat$pff_DROPBACKTYPE == "SD" ~ "play action",
@@ -33,17 +33,17 @@ run_dat <- nyg_2022 %>%
   filter(run_pass == "R")
 
 run_dat['play_name'] = case_when(run_dat$pff_RUNCONCEPTPRIMARY == "INSIDE ZONE" ~ "inside zone",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "OUTSIDE ZONE" ~ "outside zone",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "COUNTER" ~ "counter",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "DRAW" ~ "draw",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "MAN" ~ "man",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "POWER" ~ "power",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "PULL LEAD" ~ "pull lead",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "SNEAK" ~ "sneak",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "TRICK" ~ "trick",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "FB RUN" ~ "fullback",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "TRAP" ~ "trap",
-                                  run_dat$pff_RUNCONCEPTPRIMARY == "UNDEFINED" ~ "random")
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "OUTSIDE ZONE" ~ "outside zone",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "COUNTER" ~ "counter",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "DRAW" ~ "draw",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "MAN" ~ "man",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "POWER" ~ "power",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "PULL LEAD" ~ "pull lead",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "SNEAK" ~ "sneak",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "TRICK" ~ "trick",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "FB RUN" ~ "fullback",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "TRAP" ~ "trap",
+                                 run_dat$pff_RUNCONCEPTPRIMARY == "UNDEFINED" ~ "random")
 
 nyg_2022 <- rbind(pass_dat, run_dat)
 
@@ -53,10 +53,10 @@ ydl_100 <- 75
 TDS <- 0
 
 STATE <- case_when((DN == 1 | DN == 2) & ydl_100 > 20 ~ "open field",
-                              (DN == 3 | DN == 4) & ydl_100 > 20 & DST >= 8 ~ "3rd_4th long",
-                              (DN == 3 | DN == 4) & ydl_100 > 20 & DST >= 3 & DST < 8 ~ "3rd_4th med",
-                              (DN == 3 | DN == 4) & ydl_100 > 20 & DST < 2 ~ "short yardage",
-                              ydl_100 <= 20 ~ "red zone")
+                   (DN == 3 | DN == 4) & ydl_100 > 20 & DST >= 8 ~ "3rd_4th long",
+                   (DN == 3 | DN == 4) & ydl_100 > 20 & DST >= 3 & DST < 8 ~ "3rd_4th med",
+                   (DN == 3 | DN == 4) & ydl_100 > 20 & DST < 2 ~ "short yardage",
+                   ydl_100 <= 20 ~ "red zone")
 df <- nyg_2022 %>% filter(state == STATE)
 play_options <- unique(df$play_name)
 play_options<- c("",play_options[!is.na(play_options)])
@@ -69,8 +69,6 @@ ui <- fluidPage(
   titlePanel("NYG Offense Simulator"),
   
   sidebarLayout(
-    
-    # Inputs: Select variables to plot
     sidebarPanel(
       
       uiOutput("play_options")
@@ -85,7 +83,7 @@ ui <- fluidPage(
   )
 )
 
-get_result <- function(current_down, current_dst, current_ydl, play){
+get_result <- function(current_down, current_dst, current_ydl, current_tds, play){
   STATE <- case_when((current_down == 1 | current_down == 2) & current_ydl > 20 ~ "open field",
                      (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst >= 8 ~ "3rd_4th long",
                      (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst >= 3 & current_dst < 8 ~ "3rd_4th med",
@@ -95,16 +93,19 @@ get_result <- function(current_down, current_dst, current_ydl, play){
   print(STATE)
   df <- nyg_2022 %>% filter(state == STATE & play_name == play)
   result_yds <- df[sample(nrow(df), 1), ]$pff_GAINLOSSNET
+  if (identical(result_yds, integer(0))){
+    return (c(current_down, current_dst, current_ydl, 0, current_tds, STATE, 1))
+  }
+  new_tds <- current_tds
   print(result_yds)
   print(current_ydl)
   
   new_ydl <- current_ydl - result_yds # find new spot for ball
-  tds <- 0
-  if (new_ydl <= 0) { # if you score TD, reset and add 1 TD ### TODO; add multiple TD tracking
+  if (new_ydl <= 0) { # if you score TD, reset and add 1 TD
     new_down <- 1
     new_dst <- 10
     new_ydl <- 75
-    tds <- 1
+    new_tds <- current_tds + 1
   }
   if (result_yds >= current_dst){  # if you surpass the down, reset downs and distance # TODO: add goal line exception
     new_down <- 1
@@ -119,7 +120,7 @@ get_result <- function(current_down, current_dst, current_ydl, play){
     new_dst <- 10
     new_ydl <- 75
   }
-  return (c(new_down, new_dst, new_ydl, result_yds, tds, STATE))
+  return (c(new_down, new_dst, new_ydl, result_yds, new_tds, STATE, 0))
 }
 
 saveState <- function(data) {
@@ -136,7 +137,7 @@ getState <- function() {
     return (tail(play_history, 1))
   }
   else {
-    return (data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field")))
+    return (data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field"), Tds = c(0)))
   }
 }
 
@@ -156,16 +157,22 @@ server <- function(input, output, session) {
   output$down <- renderText({
     now <- getState()
     if (input$playcall == ""){ # beginning state
-      saveState(data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field")))
-      sprintf("Down: %s, Yards to Go: %s, Yardline: %s", 
-              1, 10, 75)
+      saveState(data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field"), Tds = c(0)))
+      sprintf("Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s", 
+              1, 10, 75, 0)
     }
     else{ # after user has selected 1st play
-      new <- get_result(as.numeric(now$Down), as.numeric(now$Distance), as.numeric(now$Yardline), input$playcall)
-      saveState(data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3]), State = c(new[6])))
-      sprintf("Previous play resulted in %s gain.    \n Down: %s, Yards to Go: %s, Yardline: %s", new[4], new[1], new[2], new[3])
+      new <- get_result(as.numeric(now$Down), as.numeric(now$Distance), as.numeric(now$Yardline), as.numeric(now$Tds), input$playcall)
+      if (new[7] == 1){
+        sprintf("Please select a different play.            Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s", new[1], new[2], new[3], new[5])
+      }
+      else {
+        
+        saveState(data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3]), Tds = c(new[5]), State = c(new[6])))
+        sprintf("Previous play resulted in %s gain.             Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s", new[4], new[1], new[2], new[3], new[5])
+      }
     }})
-  }
+}
 
 # Create a Shiny app object ----------------------------------------------------
 
