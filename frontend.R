@@ -55,7 +55,7 @@ TDS <- 0
 STATE <- case_when((DN == 1 | DN == 2) & ydl_100 > 20 ~ "open field",
                    (DN == 3 | DN == 4) & ydl_100 > 20 & DST >= 8 ~ "3rd_4th long",
                    (DN == 3 | DN == 4) & ydl_100 > 20 & DST >= 3 & DST < 8 ~ "3rd_4th med",
-                   (DN == 3 | DN == 4) & ydl_100 > 20 & DST < 2 ~ "short yardage",
+                   (DN == 3 | DN == 4) & ydl_100 > 20 & DST <= 2 ~ "short yardage",
                    ydl_100 <= 20 ~ "red zone")
 df <- nyg_2022 %>% filter(state == STATE)
 play_options <- unique(df$play_name)
@@ -87,7 +87,7 @@ get_result <- function(current_down, current_dst, current_ydl, current_tds, play
   STATE <- case_when((current_down == 1 | current_down == 2) & current_ydl > 20 ~ "open field",
                      (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst >= 8 ~ "3rd_4th long",
                      (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst >= 3 & current_dst < 8 ~ "3rd_4th med",
-                     (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst < 2 ~ "short yardage",
+                     (current_down == 3 | current_down == 4) & current_ydl > 20 & current_dst <= 2 ~ "short yardage",
                      current_ydl <= 20 ~ "red zone")
   print("____________")
   print(STATE)
@@ -107,9 +107,14 @@ get_result <- function(current_down, current_dst, current_ydl, current_tds, play
     new_ydl <- 75
     new_tds <- current_tds + 1
   }
-  if (result_yds >= current_dst){  # if you surpass the down, reset downs and distance # TODO: add goal line exception
+  if (result_yds >= current_dst){  # if you surpass the down, reset downs and distance
     new_down <- 1
-    new_dst <- 10
+    if (new_ydl < 10) {
+      new_dst <- new_ydl
+    }
+    else {
+      new_dst <- 10
+    }
   }
   else { # otherwise, increment downs by 1 and subtract  to find yds to go
     new_down = current_down + 1
@@ -137,7 +142,7 @@ getState <- function() {
     return (tail(play_history, 1))
   }
   else {
-    return (data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field"), Tds = c(0)))
+    return (data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field"), Tds = c(0), Plays = c(60)))
   }
 }
 
@@ -156,20 +161,30 @@ server <- function(input, output, session) {
   })
   output$down <- renderText({
     now <- getState()
-    if (input$playcall == ""){ # beginning state
-      saveState(data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field"), Tds = c(0)))
-      sprintf("Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s", 
-              1, 10, 75, 0)
+    if (now$Plays == 0){
+      sprintf("Game Over. You scored %s TDs", now$Tds)
     }
-    else{ # after user has selected 1st play
-      new <- get_result(as.numeric(now$Down), as.numeric(now$Distance), as.numeric(now$Yardline), as.numeric(now$Tds), input$playcall)
-      if (new[7] == 1){
-        sprintf("Please select a different play.            Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s", new[1], new[2], new[3], new[5])
+    else {
+      if (input$playcall == ""){ # beginning state
+        saveState(data.frame(Down = c(1), Distance = c(10), Yardline = c(75), State = c("open field"), Tds = c(0), Plays = c(60)))
+        sprintf("Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s, Plays Remaining: %s", 
+                1, 10, 75, 0, 60)
       }
-      else {
-        
-        saveState(data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3]), Tds = c(new[5]), State = c(new[6])))
-        sprintf("Previous play resulted in %s gain.             Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s", new[4], new[1], new[2], new[3], new[5])
+      else{ # after user has selected 1st play
+        new <- get_result(as.numeric(now$Down), as.numeric(now$Distance), as.numeric(now$Yardline), as.numeric(now$Tds), input$playcall)
+        if (new[7] == 1){
+          sprintf("Please select a different play. Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s, Plays Remaining: %s", new[1], new[2], new[3], new[5], now$Plays)
+        }
+        else {
+          plays_remaining <- now$Plays - 1
+          if (plays_remaining == 0) {
+            sprintf("Game Over. You scored %s TDs", new[5])
+          }
+          else {
+            saveState(data.frame(Down = c(new[1]), Distance = c(new[2]), Yardline = c(new[3]), Tds = c(new[5]), State = c(new[6]), Plays = c(now$Plays - 1)))
+            sprintf("Previous play resulted in %s gain. Down: %s, Yards to Go: %s, Yardline: %s, TDs: %s, Plays Remaining: %s", new[4], new[1], new[2], new[3], new[5], now$Plays - 1)
+          }
+        }
       }
     }})
 }
